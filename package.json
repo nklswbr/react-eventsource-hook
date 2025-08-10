@@ -1,0 +1,48 @@
+{
+  "name": "react-eventsource-hook",
+  "version": "0.1.4",
+  "description": "React hook for the EventSource interface (Server-Sent Events) with retry backoff, pause on hidden, and reconnect/close controls.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nklswbr/react-eventsource-hook"
+  },
+  "keywords": [
+    "React",
+    "hook",
+    "EventSource",
+    "server",
+    "Server-sent events",
+    "SSE",
+    "Streaming"
+  ],
+  "peerDependencies": {
+    "@microsoft/fetch-event-source": "^2.0.1",
+    "react": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.9",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
+  }
+}
