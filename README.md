@@ -29,10 +29,10 @@ function ServerUpdates() {
       'Authorization': 'Bearer your-token',
       'X-API-Key': 'your-api-key'
     },
-    onmessage: (message) => {
+    onMessage: (message) => {
       console.log('Received:', message.data)
     },
-    onerror: (error) => {
+    onError: (error) => {
       console.error('SSE Error:', error)
     }
   })
@@ -61,9 +61,9 @@ function ServerUpdates() {
 | `headers`   | `Record<string, string>`                  | No       | Custom headers (auth, API keys, etc.) |
 | `method`    | `string`                                  | No       | HTTP method (defaults to 'GET')       |
 | `body`      | `string \| FormData`                      | No       | Request body (rarely needed for SSE)  |
-| `onmessage` | `(message: EventSourceMessage) => void`  | No       | Message event handler                 |
-| `onopen`    | `(response: Response) => void`            | No       | Connection open handler               |
-| `onerror`   | `(error: unknown) => void`                | No       | Error handler                         |
+| `onMessage` | `(message: EventSourceMessage) => void`  | No       | Message event handler                 |
+| `onOpen`    | `(response: Response) => void`            | No       | Connection open handler               |
+| `onError`   | `(error: unknown) => void`                | No       | Error handler                         |
 | `fetch`     | `typeof window.fetch`                     | No       | Custom fetch implementation           |
 
 #### Return Values
@@ -84,7 +84,7 @@ useEventSource({
   headers: {
     'Authorization': `Bearer ${userToken}`
   },
-  onmessage: (msg) => {
+  onMessage: (msg) => {
     const notification = JSON.parse(msg.data)
     showNotification(notification)
   }
@@ -104,7 +104,7 @@ useEventSource({
   body: JSON.stringify({ 
     channels: ['updates', 'alerts'] 
   }),
-  onmessage: handleStreamMessage
+  onMessage: handleStreamMessage
 })
 ```
 
@@ -115,8 +115,8 @@ function ChatStream() {
   const { readyState, close, reconnect } = useEventSource({
     url: '/api/chat-stream',
     headers: { 'Authorization': `Bearer ${token}` },
-    onmessage: (msg) => addMessage(JSON.parse(msg.data)),
-    onerror: (err) => console.error('Chat stream error:', err)
+    onMessage: (msg) => addMessage(JSON.parse(msg.data)),
+    onError: (err) => console.error('Chat stream error:', err)
   })
 
   const isConnected = readyState === 1

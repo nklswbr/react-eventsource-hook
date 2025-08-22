@@ -6,9 +6,9 @@ export interface UseEventSourceOptions {
   headers?: Record<string, string>;
   method?: string;
   body?: string | FormData;
-  onmessage?: (message: EventSourceMessage) => void;
-  onopen?: (response: Response) => void;
-  onerror?: (error: unknown) => void;
+  onMessage?: (message: EventSourceMessage) => void;
+  onOpen?: (response: Response) => void;
+  onError?: (error: unknown) => void;
   fetch?: typeof window.fetch;
 }
 
@@ -19,7 +19,7 @@ export interface UseEventSourceResult {
 }
 
 export function useEventSource(options: UseEventSourceOptions): UseEventSourceResult {
-  const { url, headers, method, body, onmessage, onopen, onerror, fetch: customFetch } = options;
+  const { url, headers, method, body, onMessage, onOpen, onError, fetch: customFetch } = options;
   const [readyState, setReadyState] = useState(0);
   const controllerRef = useRef<AbortController | null>(null);
 
@@ -42,16 +42,16 @@ export function useEventSource(options: UseEventSourceOptions): UseEventSourceRe
       
       async onopen(response) {
         setReadyState(1);
-        onopen?.(response);
+        onOpen?.(response);
       },
       
       onmessage(message) {
-        onmessage?.(message);
+        onMessage?.(message);
       },
       
       onerror(err) {
         setReadyState(2);
-        onerror?.(err);
+        onError?.(err);
       },
     });
   };
@@ -72,7 +72,7 @@ export function useEventSource(options: UseEventSourceOptions): UseEventSourceRe
     return () => {
       close();
     };
-  }, [url, headers, method, body]);
+  }, [url, headers, method, body, onMessage, onOpen, onError]);
 
   return {
     readyState,
