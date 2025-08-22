@@ -1,178 +1,82 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { fetchEventSource, type EventSourceMessage } from "@microsoft/fetch-event-source";
 
-// Options mirror native EventSource plus Fetch flexibility
 export interface UseEventSourceOptions {
   url: string;
-  withCredentials?: boolean;
-  init?: RequestInit;
-  fetch?: typeof window.fetch;
-  retryIntervalMs?: number;
-  maxRetryIntervalMs?: number;
-  pauseOnHidden?: boolean;
-
-  onopen?: (response: Response) => void;
+  headers?: Record<string, string>;
+  method?: string;
+  body?: string | FormData;
   onmessage?: (message: EventSourceMessage) => void;
+  onopen?: (response: Response) => void;
   onerror?: (error: unknown) => void;
-  onclose?: () => void;
+  fetch?: typeof window.fetch;
 }
 
-// Return values mirror EventSource state and give imperative controls
 export interface UseEventSourceResult {
-  readyState: 0 | 1 | 2;
-  lastEventId: string;
-  error?: any;
-  events: EventSourceMessage[];
+  readyState: number;
   close: () => void;
   reconnect: () => void;
 }
 
-export function useEventSource(
-  options: UseEventSourceOptions
-): UseEventSourceResult {
-  const {
-    url,
-    withCredentials = false,
-    init,
-    fetch: customFetch,
-    retryIntervalMs,
-    maxRetryIntervalMs,
-    pauseOnHidden = true,
-    onopen: onOpen,
-    onmessage: onMessage,
-    onerror: onError,
-    onclose: onClose,
-  } = options;
-
-  const [readyState, setReadyState] = useState<0 | 1 | 2>(0);
-  const [lastEventId, setLastEventId] = useState<string>("");
-  const [error, setError] = useState<any>();
-  const [events, setEvents] = useState<EventSourceMessage[]>([]);
-
+export function useEventSource(options: UseEventSourceOptions): UseEventSourceResult {
+  const { url, headers, method, body, onmessage, onopen, onerror, fetch: customFetch } = options;
+  const [readyState, setReadyState] = useState(0);
   const controllerRef = useRef<AbortController | null>(null);
-  const retryCountRef = useRef<number>(0);
-  const onOpenRef = useRef<UseEventSourceOptions["onopen"]>(undefined);
-  const onMessageRef = useRef<UseEventSourceOptions["onmessage"]>(undefined);
-  const onErrorRef = useRef<UseEventSourceOptions["onerror"]>(undefined);
-  const onCloseRef = useRef<UseEventSourceOptions["onclose"]>(undefined);
 
-  // Keep latest handlers without changing the start() identity
-  useEffect(() => {
-    onOpenRef.current = onOpen;
-  }, [onOpen]);
-  useEffect(() => {
-    onMessageRef.current = onMessage;
-  }, [onMessage]);
-  useEffect(() => {
-    onErrorRef.current = onError;
-  }, [onError]);
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
+  const connect = () => {
+    if (controllerRef.current) {
+      controllerRef.current.abort();
+    }
 
-  const start = useCallback(() => {
-    // Abort existing connection if any
-    controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
 
-    setReadyState(0); // CONNECTING
-
-    // Prepare RequestInit, honoring withCredentials via fetch credentials
-    const requestInit: RequestInit = { ...init };
-    if (withCredentials && !requestInit.credentials) {
-      requestInit.credentials = "include";
-    }
-
-    // Normalize headers to plain object and include Last-Event-ID
-    const headersRecord: Record<string, string> = {};
-    const existing = new Headers(requestInit.headers ?? {});
-    existing.forEach((value, key) => {
-      headersRecord[key] = value;
-    });
-    if (lastEventId) {
-      headersRecord["Last-Event-ID"] = lastEventId;
-    }
+    setReadyState(0);
 
     fetchEventSource(url, {
-      ...requestInit,
-      headers: headersRecord,
+      method: method || 'GET',
+      headers: headers,
+      body: body,
       signal: controller.signal,
       fetch: customFetch,
+      
       async onopen(response) {
-        setReadyState(1); // OPEN
-        retryCountRef.current = 0;
-        onOpenRef.current?.(response);
+        setReadyState(1);
+        onopen?.(response);
       },
+      
       onmessage(message) {
-        setLastEventId(message.id ?? "");
-        setEvents((prev) => [...prev, message]);
-        onMessageRef.current?.(message);
+        onmessage?.(message);
       },
+      
       onerror(err) {
-        setError(err);
-        onErrorRef.current?.(err);
-        setReadyState(2); // CLOSED
-        // retry logic
-        if (retryIntervalMs != null) {
-          const delay = Math.min(
-            retryIntervalMs * 2 ** retryCountRef.current,
-            maxRetryIntervalMs ?? Infinity
-          );
-          retryCountRef.current += 1;
-          setTimeout(() => {
-            if (!controller.signal.aborted) start();
-          }, delay);
-        } else {
-          throw err;
-        }
-      },
-      onclose() {
-        setReadyState(2); // CLOSED
-        onCloseRef.current?.();
+        setReadyState(2);
+        onerror?.(err);
       },
     });
-  }, [
-    url,
-    init,
-    customFetch,
-    withCredentials,
-    retryIntervalMs,
-    maxRetryIntervalMs,
-  ]);
+  };
 
-  // Auto-start on mount and options change
+  const close = () => {
+    if (controllerRef.current) {
+      controllerRef.current.abort();
+      setReadyState(2);
+    }
+  };
+
+  const reconnect = () => {
+    connect();
+  };
+
   useEffect(() => {
-    start();
+    connect();
     return () => {
-      controllerRef.current?.abort();
+      close();
     };
-  }, [start]);
+  }, [url, headers, method, body]);
 
-  // Pause/resume on visibility
-  useEffect(() => {
-    if (!pauseOnHidden) return;
-    const handler = () => {
-      if (document.hidden) {
-        controllerRef.current?.abort();
-      } else {
-        start();
-      }
-    };
-    document.addEventListener("visibilitychange", handler);
-    return () => {
-      document.removeEventListener("visibilitychange", handler);
-    };
-  }, [pauseOnHidden, start]);
-
-  const close = useCallback(() => {
-    controllerRef.current?.abort();
-    setReadyState(2); // CLOSED
-  }, []);
-
-  const reconnect = useCallback(() => {
-    start();
-  }, [start]);
-
-  return { readyState, lastEventId, error, events, close, reconnect };
+  return {
+    readyState,
+    close,
+    reconnect,
+  };
 }

@@ -1,7 +1,7 @@
 {
   "name": "react-eventsource-hook",
-  "version": "0.1.4",
-  "description": "React hook for the EventSource interface (Server-Sent Events) with retry backoff, pause on hidden, and reconnect/close controls.",
+  "version": "0.2.1",
+  "description": "React hook for Server-Sent Events with custom headers support, built on @microsoft/fetch-event-source",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.cjs",
@@ -36,8 +36,10 @@
     "SSE",
     "Streaming"
   ],
+  "dependencies": {
+    "@microsoft/fetch-event-source": "^2.0.1"
+  },
   "peerDependencies": {
-    "@microsoft/fetch-event-source": "^2.0.1",
     "react": "^19.1.1"
   },
   "devDependencies": {
